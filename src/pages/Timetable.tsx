@@ -52,34 +52,53 @@ const Timetable = () => {
   }, [timetableData]);
 
   const updateTask = (subject: string, category: keyof Omit<DailyTask, 'remarks'>, field: 'text' | 'completed', value: any) => {
-    setTimetableData(prev => ({
-      ...prev,
-      [subject]: {
-        ...prev[subject],
-        [category]: {
-          ...prev[subject]?.[category],
-          [field]: value
+    setTimetableData(prev => {
+      const currentTask = prev[subject] || getDefaultTask();
+      return {
+        ...prev,
+        [subject]: {
+          ...currentTask,
+          [category]: {
+            ...currentTask[category],
+            [field]: value
+          }
         }
-      }
-    }));
+      };
+    });
   };
 
   const updateRemarks = (subject: string, value: string) => {
-    setTimetableData(prev => ({
-      ...prev,
-      [subject]: {
-        ...prev[subject],
-        remarks: value
-      }
-    }));
+    setTimetableData(prev => {
+      const currentTask = prev[subject] || getDefaultTask();
+      return {
+        ...prev,
+        [subject]: {
+          ...currentTask,
+          remarks: value
+        }
+      };
+    });
   };
 
+  const getDefaultTask = (): DailyTask => ({
+    lectures: { text: "", completed: null },
+    notes: { text: "", completed: null },
+    pyqs: { text: "", completed: null },
+    remarks: ""
+  });
+
   const getTask = (subject: string): DailyTask => {
-    return timetableData[subject] || {
-      lectures: { text: "", completed: null },
-      notes: { text: "", completed: null },
-      pyqs: { text: "", completed: null },
-      remarks: ""
+    const task = timetableData[subject];
+    if (!task) {
+      return getDefaultTask();
+    }
+    
+    // Ensure all required properties exist
+    return {
+      lectures: task.lectures || { text: "", completed: null },
+      notes: task.notes || { text: "", completed: null },
+      pyqs: task.pyqs || { text: "", completed: null },
+      remarks: task.remarks || ""
     };
   };
 
@@ -110,7 +129,8 @@ const Timetable = () => {
       const categories = [task.lectures, task.notes, task.pyqs];
       
       categories.forEach(category => {
-        if (category.text.trim()) {
+        // Add null check and ensure category exists
+        if (category && category.text && category.text.trim()) {
           totalTasks++;
           if (category.completed === true) {
             completedTasks++;

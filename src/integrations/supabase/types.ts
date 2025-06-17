@@ -9,7 +9,48 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      daily_tasks: {
+        Row: {
+          id: string
+          lecture_done: boolean | null
+          lecture_text: string | null
+          notes_done: boolean | null
+          notes_text: string | null
+          pyqs_done: boolean | null
+          pyqs_text: string | null
+          remark: string | null
+          study_date: string | null
+          subject: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          lecture_done?: boolean | null
+          lecture_text?: string | null
+          notes_done?: boolean | null
+          notes_text?: string | null
+          pyqs_done?: boolean | null
+          pyqs_text?: string | null
+          remark?: string | null
+          study_date?: string | null
+          subject?: string | null
+          user_id?: string
+        }
+        Update: {
+          id?: string
+          lecture_done?: boolean | null
+          lecture_text?: string | null
+          notes_done?: boolean | null
+          notes_text?: string | null
+          pyqs_done?: boolean | null
+          pyqs_text?: string | null
+          remark?: string | null
+          study_date?: string | null
+          subject?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
