@@ -51,6 +51,126 @@ export type Database = {
         }
         Relationships: []
       }
+      friend_requests: {
+        Row: {
+          created_at: string
+          id: string
+          recipient_id: string
+          requester_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          recipient_id: string
+          requester_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          recipient_id?: string
+          requester_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      friendships: {
+        Row: {
+          created_at: string
+          id: string
+          user1_id: string
+          user2_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user1_id: string
+          user2_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user1_id?: string
+          user2_id?: string
+        }
+        Relationships: []
+      }
+      portion_progress: {
+        Row: {
+          basics_formulas: boolean | null
+          chapter_id: number
+          created_at: string
+          id: string
+          jee_mains: boolean | null
+          lectures_watched: boolean | null
+          modules_dpps: boolean | null
+          notes_completed: boolean | null
+          remarks: string | null
+          revision1: boolean | null
+          revision2: boolean | null
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          basics_formulas?: boolean | null
+          chapter_id: number
+          created_at?: string
+          id?: string
+          jee_mains?: boolean | null
+          lectures_watched?: boolean | null
+          modules_dpps?: boolean | null
+          notes_completed?: boolean | null
+          remarks?: string | null
+          revision1?: boolean | null
+          revision2?: boolean | null
+          subject: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          basics_formulas?: boolean | null
+          chapter_id?: number
+          created_at?: string
+          id?: string
+          jee_mains?: boolean | null
+          lectures_watched?: boolean | null
+          modules_dpps?: boolean | null
+          notes_completed?: boolean | null
+          remarks?: string | null
+          revision1?: boolean | null
+          revision2?: boolean | null
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

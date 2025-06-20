@@ -1,14 +1,19 @@
 
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Calendar, GraduationCap } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SUBJECT_NAMES, SUBJECT_COLORS } from "@/data/subjects";
 import ToggleButton from "@/components/ToggleButton";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { useSupabaseData } from "@/hooks/useSupabaseData";
+import { format } from "date-fns";
 
 interface DailyTask {
   lectures: {
@@ -32,52 +37,56 @@ type TimetableData = {
 
 const Timetable = () => {
   const { toast } = useToast();
+  const { user, isGuest } = useAuth();
+  const { saveDailyTask, loadDailyTasks } = useSupabaseData();
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [timetableData, setTimetableData] = useState<TimetableData>({});
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
-  // Load data from localStorage on component mount
+  // Load data when component mounts or date changes
   useEffect(() => {
-    const savedData = localStorage.getItem("jee-prepometer-timetable");
-    if (savedData) {
-      try {
-        setTimetableData(JSON.parse(savedData));
-      } catch (error) {
-        console.error("Error loading timetable data:", error);
-      }
-    }
-  }, []);
+    loadTasksForDate(selectedDate);
+  }, [selectedDate, user, isGuest]);
 
-  // Save data to localStorage whenever timetableData changes
-  useEffect(() => {
-    localStorage.setItem("jee-prepometer-timetable", JSON.stringify(timetableData));
-  }, [timetableData]);
-
-  const updateTask = (subject: string, category: keyof Omit<DailyTask, 'remarks'>, field: 'text' | 'completed', value: any) => {
-    setTimetableData(prev => {
-      const currentTask = prev[subject] || getDefaultTask();
-      return {
-        ...prev,
-        [subject]: {
-          ...currentTask,
-          [category]: {
-            ...currentTask[category],
-            [field]: value
-          }
-        }
-      };
-    });
+  const loadTasksForDate = async (date: Date) => {
+    const dateString = format(date, 'yyyy-MM-dd');
+    const tasks = await loadDailyTasks(dateString);
+    setTimetableData(tasks);
   };
 
-  const updateRemarks = (subject: string, value: string) => {
-    setTimetableData(prev => {
-      const currentTask = prev[subject] || getDefaultTask();
-      return {
-        ...prev,
-        [subject]: {
-          ...currentTask,
-          remarks: value
+  const updateTask = async (subject: string, category: keyof Omit<DailyTask, 'remarks'>, field: 'text' | 'completed', value: any) => {
+    const newTimetableData = {
+      ...timetableData,
+      [subject]: {
+        ...getTask(subject),
+        [category]: {
+          ...getTask(subject)[category],
+          [field]: value
         }
-      };
-    });
+      }
+    };
+    
+    setTimetableData(newTimetableData);
+    
+    // Save to database
+    const dateString = format(selectedDate, 'yyyy-MM-dd');
+    await saveDailyTask(dateString, subject, newTimetableData[subject]);
+  };
+
+  const updateRemarks = async (subject: string, value: string) => {
+    const newTimetableData = {
+      ...timetableData,
+      [subject]: {
+        ...getTask(subject),
+        remarks: value
+      }
+    };
+    
+    setTimetableData(newTimetableData);
+    
+    // Save to database
+    const dateString = format(selectedDate, 'yyyy-MM-dd');
+    await saveDailyTask(dateString, subject, newTimetableData[subject]);
   };
 
   const getDefaultTask = (): DailyTask => ({
@@ -93,7 +102,6 @@ const Timetable = () => {
       return getDefaultTask();
     }
     
-    // Ensure all required properties exist
     return {
       lectures: task.lectures || { text: "", completed: null },
       notes: task.notes || { text: "", completed: null },
@@ -102,20 +110,19 @@ const Timetable = () => {
     };
   };
 
-  const clearAllTasks = () => {
-    setTimetableData({});
+  const clearAllTasks = async () => {
+    const emptyData: TimetableData = {};
+    setTimetableData(emptyData);
+    
+    // Clear from database for current date
+    const dateString = format(selectedDate, 'yyyy-MM-dd');
+    for (const subject of Object.keys(SUBJECT_NAMES)) {
+      await saveDailyTask(dateString, subject, getDefaultTask());
+    }
+    
     toast({
       title: "Tasks Cleared",
-      description: "All daily tasks have been cleared"
-    });
-  };
-
-  const getTodayDate = () => {
-    return new Date().toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+      description: `All tasks for ${format(selectedDate, 'MMM dd, yyyy')} have been cleared`
     });
   };
 
@@ -129,7 +136,6 @@ const Timetable = () => {
       const categories = [task.lectures, task.notes, task.pyqs];
       
       categories.forEach(category => {
-        // Add null check and ensure category exists
         if (category && category.text && category.text.trim()) {
           totalTasks++;
           if (category.completed === true) {
@@ -156,18 +162,48 @@ const Timetable = () => {
             </Button>
           </Link>
           <div className="flex items-center gap-3">
-            <Calendar className="h-8 w-8 text-blue-600" />
+            <CalendarIcon className="h-8 w-8 text-blue-600" />
             <div>
               <h1 className="text-3xl font-bold text-gray-800">Daily Tasks</h1>
-              <p className="text-gray-600">{getTodayDate()}</p>
+              <p className="text-gray-600">{format(selectedDate, 'EEEE, MMMM do, yyyy')}</p>
             </div>
           </div>
         </div>
 
+        {/* Date Navigation */}
+        <Card className="p-4 mb-6 bg-white/80 backdrop-blur-sm">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-800">Select Date</h2>
+            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4" />
+                  {format(selectedDate, 'MMM dd, yyyy')}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => {
+                    if (date) {
+                      setSelectedDate(date);
+                      setIsCalendarOpen(false);
+                    }
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        </Card>
+
         {/* Day Progress Card */}
         <Card className="p-6 mb-8 bg-gradient-to-r from-blue-100 to-indigo-100 border-blue-200">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">Today's Progress</h2>
+            <h2 className="text-xl font-semibold text-gray-800">
+              Progress for {format(selectedDate, 'MMM dd')}
+            </h2>
             <Button 
               onClick={clearAllTasks}
               variant="outline"
@@ -310,7 +346,7 @@ const Timetable = () => {
               <strong>🎯 PYQs:</strong> Include year range or specific topics you'll practice
             </div>
             <div>
-              <strong>🔄 Daily Review:</strong> Use remarks to note difficulty levels and areas to revisit
+              <strong>🗓️ Calendar:</strong> Use the calendar icon to navigate between different dates
             </div>
           </div>
         </Card>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, GraduationCap, Download } from "lucide-react";
@@ -9,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { SUBJECTS, SUBJECT_NAMES, SUBJECT_COLORS } from "@/data/subjects";
 import ToggleButton from "@/components/ToggleButton";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { useSupabaseData } from "@/hooks/useSupabaseData";
 
 interface ChapterProgress {
   lecturesWatched: boolean | null;
@@ -29,37 +30,37 @@ type ProgressData = {
 
 const PortionCompleted = () => {
   const { toast } = useToast();
+  const { user, isGuest } = useAuth();
+  const { savePortionProgress, loadPortionProgress } = useSupabaseData();
   const [activeTab, setActiveTab] = useState("physics");
   const [progressData, setProgressData] = useState<ProgressData>({});
 
-  // Load data from localStorage on component mount
+  // Load data when component mounts
   useEffect(() => {
-    const savedData = localStorage.getItem("jee-prepometer-progress");
-    if (savedData) {
-      try {
-        setProgressData(JSON.parse(savedData));
-      } catch (error) {
-        console.error("Error loading progress data:", error);
-      }
-    }
-  }, []);
+    loadData();
+  }, [user, isGuest]);
 
-  // Save data to localStorage whenever progressData changes
-  useEffect(() => {
-    localStorage.setItem("jee-prepometer-progress", JSON.stringify(progressData));
-  }, [progressData]);
+  const loadData = async () => {
+    const data = await loadPortionProgress();
+    setProgressData(data);
+  };
 
-  const updateProgress = (subject: string, chapterId: number, field: keyof ChapterProgress, value: any) => {
-    setProgressData(prev => ({
-      ...prev,
+  const updateProgress = async (subject: string, chapterId: number, field: keyof ChapterProgress, value: any) => {
+    const newProgressData = {
+      ...progressData,
       [subject]: {
-        ...prev[subject],
+        ...progressData[subject],
         [chapterId]: {
-          ...prev[subject]?.[chapterId],
+          ...getProgress(subject, chapterId),
           [field]: value
         }
       }
-    }));
+    };
+    
+    setProgressData(newProgressData);
+    
+    // Save to database
+    await savePortionProgress(subject, chapterId, newProgressData[subject][chapterId]);
   };
 
   const getProgress = (subject: string, chapterId: number): ChapterProgress => {
