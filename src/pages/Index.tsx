@@ -1,24 +1,41 @@
 
 import { Link, useNavigate } from "react-router-dom";
-import { BookOpen, Calendar, GraduationCap, UserPlus, LogOut, User } from "lucide-react";
+import { BookOpen, Calendar, GraduationCap, UserPlus, LogOut, User, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 const Index = () => {
   const { user, isGuest, guestId, signOut, loading } = useAuth();
   const navigate = useNavigate();
+  const [showInstallButton, setShowInstallButton] = useState(false);
 
   useEffect(() => {
     if (!loading && !user && !isGuest) {
       navigate('/auth');
     }
+
+    // Check if app can be installed
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    const isInWebAppiOS = (window.navigator as any).standalone === true;
+    setShowInstallButton(!isStandalone && !isInWebAppiOS);
   }, [user, isGuest, loading, navigate]);
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/auth');
+  };
+
+  const handleInstallApp = () => {
+    // Check for native install prompt
+    const installPrompt = (window as any).deferredPrompt;
+    if (installPrompt) {
+      installPrompt.prompt();
+    } else {
+      // Fallback instructions
+      alert('To install this app:\n\n1. Click the menu button (⋮) in your browser\n2. Select "Install JEE Prepometer" or "Add to Home Screen"\n3. Follow the installation prompts');
+    }
   };
 
   if (loading) {
@@ -54,6 +71,16 @@ const Index = () => {
           </div>
           
           <div className="flex items-center gap-3">
+            {showInstallButton && (
+              <Button 
+                variant="outline" 
+                onClick={handleInstallApp}
+                className="flex items-center gap-2 bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+              >
+                <Download className="h-4 w-4" />
+                Install App
+              </Button>
+            )}
             {!isGuest && (
               <Link to="/friends">
                 <Button variant="outline" className="flex items-center gap-2">

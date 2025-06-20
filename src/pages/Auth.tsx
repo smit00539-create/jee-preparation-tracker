@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { GraduationCap, User, Mail, Lock, UserPlus, LogIn } from 'lucide-react';
+import { GraduationCap, User, Mail, Lock, UserPlus, LogIn, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ const Auth = () => {
   const { signUp, signIn, continueAsGuest } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showConfirmationMessage, setShowConfirmationMessage] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -47,16 +48,35 @@ const Auth = () => {
       let result;
       if (isSignUp) {
         result = await signUp(formData.email, formData.password, formData.username);
+        if (result.needsConfirmation) {
+          setShowConfirmationMessage(true);
+          setLoading(false);
+          return;
+        }
       } else {
         result = await signIn(formData.email, formData.password);
       }
 
       if (result.error) {
-        toast({
-          title: "Authentication Error",
-          description: result.error.message,
-          variant: "destructive"
-        });
+        if (result.error.message.includes('Email not confirmed')) {
+          toast({
+            title: "Email Not Confirmed",
+            description: "Please check your email and click the confirmation link before signing in.",
+            variant: "destructive"
+          });
+        } else if (result.error.message.includes('Invalid login credentials')) {
+          toast({
+            title: "Invalid Credentials",
+            description: "Please check your email and password and try again.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Authentication Error",
+            description: result.error.message,
+            variant: "destructive"
+          });
+        }
       } else {
         toast({
           title: "Success",
@@ -79,6 +99,39 @@ const Auth = () => {
     continueAsGuest();
     navigate('/');
   };
+
+  if (showConfirmationMessage) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <Card className="p-8 bg-white/90 backdrop-blur-sm text-center">
+            <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-semibold text-gray-800 mb-4">Check Your Email</h2>
+            <p className="text-gray-600 mb-6">
+              We've sent a confirmation link to <strong>{formData.email}</strong>. 
+              Please check your email and click the link to activate your account.
+            </p>
+            <p className="text-sm text-gray-500 mb-6">
+              After confirming your email, you can return here to sign in.
+            </p>
+            <Button 
+              onClick={() => setShowConfirmationMessage(false)}
+              className="w-full mb-4"
+            >
+              Back to Sign In
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleGuestMode}
+              className="w-full"
+            >
+              Continue as Guest Instead
+            </Button>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
