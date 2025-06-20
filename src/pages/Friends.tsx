@@ -20,8 +20,13 @@ interface FriendRequest {
   requester_id: string;
   recipient_id: string;
   status: string;
-  requester_profile?: Profile;
-  recipient_profile?: Profile;
+  requester_username?: string;
+}
+
+interface Friendship {
+  id: string;
+  user1_id: string;
+  user2_id: string;
 }
 
 const Friends = () => {
@@ -44,44 +49,79 @@ const Friends = () => {
   const loadFriendRequests = async () => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('friend_requests')
-      .select(`
-        *,
-        requester_profile:profiles!friend_requests_requester_id_fkey(id, username),
-        recipient_profile:profiles!friend_requests_recipient_id_fkey(id, username)
-      `)
-      .eq('recipient_id', user.id)
-      .eq('status', 'pending');
+    try {
+      // First get the friend requests
+      const { data: requests, error: requestsError } = await supabase
+        .from('friend_requests')
+        .select('*')
+        .eq('recipient_id', user.id)
+        .eq('status', 'pending');
 
-    if (error) {
-      console.error('Error loading friend requests:', error);
-    } else {
-      setFriendRequests(data || []);
+      if (requestsError) {
+        console.error('Error loading friend requests:', requestsError);
+        return;
+      }
+
+      // Then get the usernames for the requesters
+      const requestsWithUsernames = await Promise.all(
+        (requests || []).map(async (request) => {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', request.requester_id)
+            .single();
+
+          return {
+            ...request,
+            requester_username: profile?.username || 'Unknown User'
+          };
+        })
+      );
+
+      setFriendRequests(requestsWithUsernames);
+    } catch (error) {
+      console.error('Error in loadFriendRequests:', error);
     }
   };
 
   const loadMyFriends = async () => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('friendships')
-      .select(`
-        *,
-        user1_profile:profiles!friendships_user1_id_fkey(id, username),
-        user2_profile:profiles!friendships_user2_id_fkey(id, username)
-      `)
-      .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+    try {
+      // Get friendships where user is either user1 or user2
+      const { data: friendships, error: friendshipsError } = await supabase
+        .from('friendships')
+        .select('*')
+        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
 
-    if (error) {
-      console.error('Error loading friends:', error);
-    } else {
-      const friends = (data || []).map(friendship => {
-        return friendship.user1_id === user.id 
-          ? friendship.user2_profile 
-          : friendship.user1_profile;
-      });
-      setMyFriends(friends);
+      if (friendshipsError) {
+        console.error('Error loading friendships:', friendshipsError);
+        return;
+      }
+
+      // Get friend profiles
+      const friendIds = (friendships || []).map(friendship => 
+        friendship.user1_id === user.id ? friendship.user2_id : friendship.user1_id
+      );
+
+      if (friendIds.length === 0) {
+        setMyFriends([]);
+        return;
+      }
+
+      const { data: friendProfiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, username')
+        .in('id', friendIds);
+
+      if (profilesError) {
+        console.error('Error loading friend profiles:', profilesError);
+        return;
+      }
+
+      setMyFriends(friendProfiles || []);
+    } catch (error) {
+      console.error('Error in loadMyFriends:', error);
     }
   };
 
@@ -299,9 +339,9 @@ const Friends = () => {
                   <div key={request.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-semibold">
-                        {request.requester_profile?.username.charAt(0).toUpperCase()}
+                        {request.requester_username?.charAt(0).toUpperCase()}
                       </div>
-                      <span className="font-medium">{request.requester_profile?.username}</span>
+                      <span className="font-medium">{request.requester_username}</span>
                     </div>
                     <div className="flex gap-2">
                       <Button
