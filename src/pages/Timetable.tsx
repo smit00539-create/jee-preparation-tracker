@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { SUBJECT_NAMES, SUBJECT_COLORS } from "@/data/subjects";
 import ToggleButton from "@/components/ToggleButton";
 import TimerComponent from "@/components/TimerComponent";
+import FriendsStudySessions from "@/components/FriendsStudySessions";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
@@ -310,6 +311,8 @@ const Timetable = () => {
                             <TimerComponent
                               onTimeUpdate={(timeSpent) => updateTask(subject, 'lectures', 'timeSpent', timeSpent)}
                               size="sm"
+                              subject={subject}
+                              category="lectures"
                             />
                           </div>
                           <div className="flex justify-center">
@@ -335,6 +338,8 @@ const Timetable = () => {
                             <TimerComponent
                               onTimeUpdate={(timeSpent) => updateTask(subject, 'notes', 'timeSpent', timeSpent)}
                               size="sm"
+                              subject={subject}
+                              category="notes"
                             />
                           </div>
                           <div className="flex justify-center">
@@ -360,6 +365,8 @@ const Timetable = () => {
                             <TimerComponent
                               onTimeUpdate={(timeSpent) => updateTask(subject, 'homework', 'timeSpent', timeSpent)}
                               size="sm"
+                              subject={subject}
+                              category="homework"
                             />
                           </div>
                           <div className="flex justify-center">
@@ -385,6 +392,8 @@ const Timetable = () => {
                             <TimerComponent
                               onTimeUpdate={(timeSpent) => updateTask(subject, 'modules', 'timeSpent', timeSpent)}
                               size="sm"
+                              subject={subject}
+                              category="modules"
                             />
                           </div>
                           <div className="flex justify-center">
@@ -410,6 +419,8 @@ const Timetable = () => {
                             <TimerComponent
                               onTimeUpdate={(timeSpent) => updateTask(subject, 'pyqs', 'timeSpent', timeSpent)}
                               size="sm"
+                              subject={subject}
+                              category="pyqs"
                             />
                           </div>
                           <div className="flex justify-center">
@@ -445,6 +456,9 @@ const Timetable = () => {
             </table>
           </div>
         </Card>
+
+        {/* Friends Study Sessions */}
+        <FriendsStudySessions />
 
         {/* Tips Section */}
         <Card className="p-6 mt-8 bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
