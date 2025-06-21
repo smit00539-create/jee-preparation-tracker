@@ -11,39 +11,66 @@ export type Database = {
     Tables: {
       daily_tasks: {
         Row: {
+          homework_done: boolean | null
+          homework_text: string | null
+          homework_time: number | null
           id: string
           lecture_done: boolean | null
           lecture_text: string | null
+          lecture_time: number | null
+          modules_done: boolean | null
+          modules_text: string | null
+          modules_time: number | null
           notes_done: boolean | null
           notes_text: string | null
+          notes_time: number | null
           pyqs_done: boolean | null
           pyqs_text: string | null
+          pyqs_time: number | null
           remark: string | null
           study_date: string | null
           subject: string | null
           user_id: string
         }
         Insert: {
+          homework_done?: boolean | null
+          homework_text?: string | null
+          homework_time?: number | null
           id?: string
           lecture_done?: boolean | null
           lecture_text?: string | null
+          lecture_time?: number | null
+          modules_done?: boolean | null
+          modules_text?: string | null
+          modules_time?: number | null
           notes_done?: boolean | null
           notes_text?: string | null
+          notes_time?: number | null
           pyqs_done?: boolean | null
           pyqs_text?: string | null
+          pyqs_time?: number | null
           remark?: string | null
           study_date?: string | null
           subject?: string | null
           user_id?: string
         }
         Update: {
+          homework_done?: boolean | null
+          homework_text?: string | null
+          homework_time?: number | null
           id?: string
           lecture_done?: boolean | null
           lecture_text?: string | null
+          lecture_time?: number | null
+          modules_done?: boolean | null
+          modules_text?: string | null
+          modules_time?: number | null
           notes_done?: boolean | null
           notes_text?: string | null
+          notes_time?: number | null
           pyqs_done?: boolean | null
           pyqs_text?: string | null
+          pyqs_time?: number | null
           remark?: string | null
           study_date?: string | null
           subject?: string | null
