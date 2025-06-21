@@ -10,6 +10,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SUBJECT_NAMES, SUBJECT_COLORS } from "@/data/subjects";
 import ToggleButton from "@/components/ToggleButton";
+import TimerComponent from "@/components/TimerComponent";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
@@ -19,14 +20,27 @@ interface DailyTask {
   lectures: {
     text: string;
     completed: boolean | null;
+    timeSpent: number;
   };
   notes: {
     text: string;
     completed: boolean | null;
+    timeSpent: number;
+  };
+  homework: {
+    text: string;
+    completed: boolean | null;
+    timeSpent: number;
+  };
+  modules: {
+    text: string;
+    completed: boolean | null;
+    timeSpent: number;
   };
   pyqs: {
     text: string;
     completed: boolean | null;
+    timeSpent: number;
   };
   remarks: string;
 }
@@ -54,7 +68,7 @@ const Timetable = () => {
     setTimetableData(tasks);
   };
 
-  const updateTask = async (subject: string, category: keyof Omit<DailyTask, 'remarks'>, field: 'text' | 'completed', value: any) => {
+  const updateTask = async (subject: string, category: keyof Omit<DailyTask, 'remarks'>, field: 'text' | 'completed' | 'timeSpent', value: any) => {
     const newTimetableData = {
       ...timetableData,
       [subject]: {
@@ -90,9 +104,11 @@ const Timetable = () => {
   };
 
   const getDefaultTask = (): DailyTask => ({
-    lectures: { text: "", completed: null },
-    notes: { text: "", completed: null },
-    pyqs: { text: "", completed: null },
+    lectures: { text: "", completed: null, timeSpent: 0 },
+    notes: { text: "", completed: null, timeSpent: 0 },
+    homework: { text: "", completed: null, timeSpent: 0 },
+    modules: { text: "", completed: null, timeSpent: 0 },
+    pyqs: { text: "", completed: null, timeSpent: 0 },
     remarks: ""
   });
 
@@ -103,9 +119,11 @@ const Timetable = () => {
     }
     
     return {
-      lectures: task.lectures || { text: "", completed: null },
-      notes: task.notes || { text: "", completed: null },
-      pyqs: task.pyqs || { text: "", completed: null },
+      lectures: task.lectures || { text: "", completed: null, timeSpent: 0 },
+      notes: task.notes || { text: "", completed: null, timeSpent: 0 },
+      homework: task.homework || { text: "", completed: null, timeSpent: 0 },
+      modules: task.modules || { text: "", completed: null, timeSpent: 0 },
+      pyqs: task.pyqs || { text: "", completed: null, timeSpent: 0 },
       remarks: task.remarks || ""
     };
   };
@@ -133,7 +151,7 @@ const Timetable = () => {
 
     subjects.forEach(subject => {
       const task = getTask(subject);
-      const categories = [task.lectures, task.notes, task.pyqs];
+      const categories = [task.lectures, task.notes, task.homework, task.modules, task.pyqs];
       
       categories.forEach(category => {
         if (category && category.text && category.text.trim()) {
@@ -146,6 +164,18 @@ const Timetable = () => {
     });
 
     return totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  };
+
+  const calculateTotalTime = (subject: string) => {
+    const task = getTask(subject);
+    const totalSeconds = task.lectures.timeSpent + task.notes.timeSpent + 
+                        task.homework.timeSpent + task.modules.timeSpent + task.pyqs.timeSpent;
+    
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
   const dayProgress = calculateDayProgress();
@@ -242,7 +272,16 @@ const Timetable = () => {
                     Notes
                   </th>
                   <th className="border border-gray-300 p-4 text-center min-w-[200px]">
+                    Homework
+                  </th>
+                  <th className="border border-gray-300 p-4 text-center min-w-[200px]">
+                    Modules
+                  </th>
+                  <th className="border border-gray-300 p-4 text-center min-w-[200px]">
                     PYQs
+                  </th>
+                  <th className="border border-gray-300 p-4 text-center min-w-[150px]">
+                    Total Time
                   </th>
                   <th className="border border-gray-300 p-4 text-center min-w-[250px]">
                     Remarks
@@ -268,6 +307,12 @@ const Timetable = () => {
                             className="w-full"
                           />
                           <div className="flex justify-center">
+                            <TimerComponent
+                              onTimeUpdate={(timeSpent) => updateTask(subject, 'lectures', 'timeSpent', timeSpent)}
+                              size="sm"
+                            />
+                          </div>
+                          <div className="flex justify-center">
                             <ToggleButton
                               value={task.lectures.completed}
                               onChange={(value) => updateTask(subject, 'lectures', 'completed', value)}
@@ -287,9 +332,65 @@ const Timetable = () => {
                             className="w-full"
                           />
                           <div className="flex justify-center">
+                            <TimerComponent
+                              onTimeUpdate={(timeSpent) => updateTask(subject, 'notes', 'timeSpent', timeSpent)}
+                              size="sm"
+                            />
+                          </div>
+                          <div className="flex justify-center">
                             <ToggleButton
                               value={task.notes.completed}
                               onChange={(value) => updateTask(subject, 'notes', 'completed', value)}
+                              size="sm"
+                            />
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Homework Column */}
+                      <td className="border border-gray-300 p-4">
+                        <div className="space-y-2">
+                          <Input
+                            value={task.homework.text}
+                            onChange={(e) => updateTask(subject, 'homework', 'text', e.target.value)}
+                            placeholder="What homework will you do?"
+                            className="w-full"
+                          />
+                          <div className="flex justify-center">
+                            <TimerComponent
+                              onTimeUpdate={(timeSpent) => updateTask(subject, 'homework', 'timeSpent', timeSpent)}
+                              size="sm"
+                            />
+                          </div>
+                          <div className="flex justify-center">
+                            <ToggleButton
+                              value={task.homework.completed}
+                              onChange={(value) => updateTask(subject, 'homework', 'completed', value)}
+                              size="sm"
+                            />
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Modules Column */}
+                      <td className="border border-gray-300 p-4">
+                        <div className="space-y-2">
+                          <Input
+                            value={task.modules.text}
+                            onChange={(e) => updateTask(subject, 'modules', 'text', e.target.value)}
+                            placeholder="Which modules will you solve?"
+                            className="w-full"
+                          />
+                          <div className="flex justify-center">
+                            <TimerComponent
+                              onTimeUpdate={(timeSpent) => updateTask(subject, 'modules', 'timeSpent', timeSpent)}
+                              size="sm"
+                            />
+                          </div>
+                          <div className="flex justify-center">
+                            <ToggleButton
+                              value={task.modules.completed}
+                              onChange={(value) => updateTask(subject, 'modules', 'completed', value)}
                               size="sm"
                             />
                           </div>
@@ -306,12 +407,25 @@ const Timetable = () => {
                             className="w-full"
                           />
                           <div className="flex justify-center">
+                            <TimerComponent
+                              onTimeUpdate={(timeSpent) => updateTask(subject, 'pyqs', 'timeSpent', timeSpent)}
+                              size="sm"
+                            />
+                          </div>
+                          <div className="flex justify-center">
                             <ToggleButton
                               value={task.pyqs.completed}
                               onChange={(value) => updateTask(subject, 'pyqs', 'completed', value)}
                               size="sm"
                             />
                           </div>
+                        </div>
+                      </td>
+
+                      {/* Total Time Column */}
+                      <td className="border border-gray-300 p-4 text-center">
+                        <div className="font-mono text-lg font-semibold text-blue-800">
+                          {calculateTotalTime(subject)}
                         </div>
                       </td>
 
@@ -343,10 +457,16 @@ const Timetable = () => {
               <strong>📝 Notes:</strong> Mention the format (mind maps, summary sheets, formula cards)
             </div>
             <div>
+              <strong>📋 Homework:</strong> Include assignments and practice problems
+            </div>
+            <div>
+              <strong>🧩 Modules:</strong> Specify module numbers or problem-solving techniques
+            </div>
+            <div>
               <strong>🎯 PYQs:</strong> Include year range or specific topics you'll practice
             </div>
             <div>
-              <strong>🗓️ Calendar:</strong> Use the calendar icon to navigate between different dates
+              <strong>⏱️ Timer:</strong> Use the timer to track time spent on each activity
             </div>
           </div>
         </Card>

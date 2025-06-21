@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,10 +26,19 @@ export const useSupabaseData = () => {
         subject: subject,
         lecture_text: taskData.lectures?.text || '',
         lecture_done: taskData.lectures?.completed,
+        lecture_time: taskData.lectures?.timeSpent || 0,
         notes_text: taskData.notes?.text || '',
         notes_done: taskData.notes?.completed,
+        notes_time: taskData.notes?.timeSpent || 0,
+        homework_text: taskData.homework?.text || '',
+        homework_done: taskData.homework?.completed,
+        homework_time: taskData.homework?.timeSpent || 0,
+        modules_text: taskData.modules?.text || '',
+        modules_done: taskData.modules?.completed,
+        modules_time: taskData.modules?.timeSpent || 0,
         pyqs_text: taskData.pyqs?.text || '',
         pyqs_done: taskData.pyqs?.completed,
+        pyqs_time: taskData.pyqs?.timeSpent || 0,
         remark: taskData.remarks || ''
       }, {
         onConflict: 'user_id,study_date,subject'
@@ -75,9 +83,31 @@ export const useSupabaseData = () => {
     const tasksForDate: any = {};
     data.forEach(task => {
       tasksForDate[task.subject] = {
-        lectures: { text: task.lecture_text || '', completed: task.lecture_done },
-        notes: { text: task.notes_text || '', completed: task.notes_done },
-        pyqs: { text: task.pyqs_text || '', completed: task.pyqs_done },
+        lectures: { 
+          text: task.lecture_text || '', 
+          completed: task.lecture_done,
+          timeSpent: task.lecture_time || 0
+        },
+        notes: { 
+          text: task.notes_text || '', 
+          completed: task.notes_done,
+          timeSpent: task.notes_time || 0
+        },
+        homework: { 
+          text: task.homework_text || '', 
+          completed: task.homework_done,
+          timeSpent: task.homework_time || 0
+        },
+        modules: { 
+          text: task.modules_text || '', 
+          completed: task.modules_done,
+          timeSpent: task.modules_time || 0
+        },
+        pyqs: { 
+          text: task.pyqs_text || '', 
+          completed: task.pyqs_done,
+          timeSpent: task.pyqs_time || 0
+        },
         remarks: task.remark || ''
       };
     });
