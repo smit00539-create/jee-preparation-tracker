@@ -1,3 +1,4 @@
+
 import { Link, useNavigate } from "react-router-dom";
 import { BookOpen, Calendar, GraduationCap, UserPlus, LogOut, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -5,16 +6,10 @@ import { Card } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
-
 const Index = () => {
   const { user, isGuest, guestId, signOut, loading } = useAuth();
   const navigate = useNavigate();
   const [showInstallButton, setShowInstallButton] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
     if (!loading && !user && !isGuest) {
@@ -22,34 +17,35 @@ const Index = () => {
     }
 
     // Check if app can be installed
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-    const isInWebAppiOS = (window.navigator as any).standalone === true;
-    const isInWebApp = window.matchMedia('(display-mode: fullscreen)').matches;
-    const isInstalled = isStandalone || isInWebAppiOS || isInWebApp;
-    
-    console.log('[PWA] Installation status:', { isStandalone, isInWebAppiOS, isInWebApp, isInstalled });
-    setShowInstallButton(!isInstalled);
-
-    // Listen for the install prompt
-    const handleBeforeInstallPrompt = (e: Event) => {
-      console.log('[PWA] beforeinstallprompt event fired on Index page');
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setShowInstallButton(true);
+    const checkInstallStatus = () => {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      const isInWebAppiOS = (window.navigator as any).standalone === true;
+      const isInWebApp = window.matchMedia('(display-mode: fullscreen)').matches;
+      const isInstalled = isStandalone || isInWebAppiOS || isInWebApp;
+      
+      console.log('[PWA] Install status check:', { isStandalone, isInWebAppiOS, isInWebApp, isInstalled });
+      setShowInstallButton(!isInstalled);
     };
 
-    const handleAppInstalled = () => {
-      console.log('[PWA] App was installed from Index page');
+    checkInstallStatus();
+
+    // Listen for PWA events
+    const handleInstallable = () => {
+      console.log('[PWA] App became installable');
+      checkInstallStatus();
+    };
+
+    const handleInstalled = () => {
+      console.log('[PWA] App was installed');
       setShowInstallButton(false);
-      setDeferredPrompt(null);
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
+    window.addEventListener('pwa-installable', handleInstallable);
+    window.addEventListener('pwa-installed', handleInstalled);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
+      window.removeEventListener('pwa-installable', handleInstallable);
+      window.removeEventListener('pwa-installed', handleInstalled);
     };
   }, [user, isGuest, loading, navigate]);
 
@@ -59,46 +55,19 @@ const Index = () => {
   };
 
   const handleInstallApp = async () => {
-    console.log('[PWA] Install app clicked from Index page', { deferredPrompt: !!deferredPrompt });
+    console.log('[PWA] Install button clicked on Index page');
     
-    if (!deferredPrompt) {
-      console.log('[PWA] No deferred prompt available, trying alternative methods');
-      
-      // For browsers that support it, try to trigger installation
-      const userAgent = navigator.userAgent.toLowerCase();
-      
-      if (userAgent.includes('chrome') || userAgent.includes('edge')) {
-        // For Chrome/Edge, the prompt should be available
-        console.log('[PWA] Chrome/Edge detected but no prompt - showing instructions');
-        showInstallInstructions();
-      } else if (userAgent.includes('safari')) {
-        showInstallInstructions();
-      } else {
-        showInstallInstructions();
-      }
-      return;
-    }
-
     try {
-      console.log('[PWA] Attempting to show install prompt');
-      // Show the install prompt
-      await deferredPrompt.prompt();
+      const result = await (window as any).installPWA();
+      console.log('[PWA] Install result from Index:', result);
       
-      // Wait for the user to respond to the prompt
-      const { outcome } = await deferredPrompt.userChoice;
-      
-      console.log(`[PWA] Install prompt outcome: ${outcome}`);
-      
-      if (outcome === 'accepted') {
-        console.log('[PWA] User accepted the install prompt');
+      if (result.success) {
         setShowInstallButton(false);
+      } else if (result.reason === 'no-prompt') {
+        showInstallInstructions();
       }
-      
-      // Clear the saved prompt since it can only be used once
-      setDeferredPrompt(null);
-      
     } catch (error) {
-      console.error('[PWA] Error during installation:', error);
+      console.error('[PWA] Install failed from Index:', error);
       showInstallInstructions();
     }
   };
@@ -108,7 +77,7 @@ const Index = () => {
     let instructions = '';
     
     if (userAgent.includes('chrome') && !userAgent.includes('edg')) {
-      instructions = 'Chrome: Click the install icon in the address bar or go to Menu → Install JEE Prepometer';
+      instructions = 'Chrome: Look for the install icon in the address bar or go to Menu → Install JEE Prepometer';
     } else if (userAgent.includes('safari')) {
       instructions = 'Safari: Tap Share button → Add to Home Screen';
     } else if (userAgent.includes('firefox')) {
