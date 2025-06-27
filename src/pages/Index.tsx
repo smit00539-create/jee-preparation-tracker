@@ -10,6 +10,7 @@ const Index = () => {
   const { user, isGuest, guestId, signOut, loading } = useAuth();
   const navigate = useNavigate();
   const [showInstallButton, setShowInstallButton] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
     if (!loading && !user && !isGuest) {
@@ -19,7 +20,30 @@ const Index = () => {
     // Check if app can be installed
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
     const isInWebAppiOS = (window.navigator as any).standalone === true;
-    setShowInstallButton(!isStandalone && !isInWebAppiOS);
+    const isInWebApp = window.matchMedia('(display-mode: fullscreen)').matches;
+    const isInstalled = isStandalone || isInWebAppiOS || isInWebApp;
+    
+    setShowInstallButton(!isInstalled);
+
+    // Listen for the install prompt
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallButton(true);
+    };
+
+    const handleAppInstalled = () => {
+      setShowInstallButton(false);
+      setDeferredPrompt(null);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
   }, [user, isGuest, loading, navigate]);
 
   const handleSignOut = async () => {
@@ -27,14 +51,31 @@ const Index = () => {
     navigate('/auth');
   };
 
-  const handleInstallApp = () => {
-    // Check for native install prompt
-    const installPrompt = (window as any).deferredPrompt;
-    if (installPrompt) {
-      installPrompt.prompt();
-    } else {
-      // Fallback instructions
-      alert('To install this app:\n\n1. Click the menu button (⋮) in your browser\n2. Select "Install JEE Prepometer" or "Add to Home Screen"\n3. Follow the installation prompts');
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) {
+      console.log('No install prompt available');
+      return;
+    }
+
+    try {
+      // Show the install prompt
+      await deferredPrompt.prompt();
+      
+      // Wait for the user to respond to the prompt
+      const { outcome } = await deferredPrompt.userChoice;
+      
+      console.log(`Install prompt outcome: ${outcome}`);
+      
+      if (outcome === 'accepted') {
+        console.log('User accepted the install prompt');
+        setShowInstallButton(false);
+      }
+      
+      // Clear the saved prompt since it can only be used once
+      setDeferredPrompt(null);
+      
+    } catch (error) {
+      console.error('Error during installation:', error);
     }
   };
 

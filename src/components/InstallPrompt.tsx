@@ -19,12 +19,14 @@ const InstallPrompt = () => {
     const checkIfInstalled = () => {
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
       const isInWebAppiOS = (window.navigator as any).standalone === true;
-      setIsInstalled(isStandalone || isInWebAppiOS);
+      const isInWebApp = window.matchMedia('(display-mode: fullscreen)').matches;
+      setIsInstalled(isStandalone || isInWebAppiOS || isInWebApp);
     };
 
     checkIfInstalled();
 
     const handleBeforeInstallPrompt = (e: Event) => {
+      console.log('beforeinstallprompt fired');
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       
@@ -33,42 +35,72 @@ const InstallPrompt = () => {
       const dismissedTime = dismissed ? parseInt(dismissed) : 0;
       const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
       
-      if (dismissedTime < oneDayAgo) {
+      if (dismissedTime < oneDayAgo && !isInstalled) {
         setShowInstallPrompt(true);
       }
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    const handleAppInstalled = () => {
+      console.log('PWA was installed');
+      setIsInstalled(true);
+      setShowInstallPrompt(false);
+      setDeferredPrompt(null);
+    };
 
-    // For testing purposes, show the prompt after 3 seconds if no native prompt
+    // Listen for the install prompt
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    // For testing purposes, show the prompt after 5 seconds if conditions are met
     const timer = setTimeout(() => {
       if (!deferredPrompt && !isInstalled && !localStorage.getItem('installPromptDismissed')) {
-        setShowInstallPrompt(true);
+        // Check if we're in a PWA context
+        const isPWAContext = window.matchMedia('(display-mode: standalone)').matches ||
+                            (window.navigator as any).standalone === true;
+        
+        if (!isPWAContext) {
+          setShowInstallPrompt(true);
+        }
       }
-    }, 3000);
+    }, 5000);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
       clearTimeout(timer);
     };
-  }, []);
+  }, [isInstalled]);
 
   const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
+    if (!deferredPrompt) {
+      console.log('No install prompt available');
+      setShowInstallPrompt(false);
+      return;
+    }
+
+    try {
+      // Show the install prompt
+      await deferredPrompt.prompt();
+      
+      // Wait for the user to respond to the prompt
       const { outcome } = await deferredPrompt.userChoice;
+      
+      console.log(`Install prompt outcome: ${outcome}`);
       
       if (outcome === 'accepted') {
         console.log('User accepted the install prompt');
+        setIsInstalled(true);
       } else {
         console.log('User dismissed the install prompt');
+        localStorage.setItem('installPromptDismissed', Date.now().toString());
       }
       
+      // Clear the saved prompt since it can only be used once
       setDeferredPrompt(null);
       setShowInstallPrompt(false);
-    } else {
-      // Fallback for browsers without native install prompt
-      alert('To install this app:\n\n1. Click the menu button (⋮) in your browser\n2. Select "Install JEE Prepometer" or "Add to Home Screen"\n3. Follow the installation prompts');
+      
+    } catch (error) {
+      console.error('Error during installation:', error);
       setShowInstallPrompt(false);
     }
   };
@@ -98,7 +130,7 @@ const InstallPrompt = () => {
               onClick={handleInstallClick}
               className="text-blue-600"
             >
-              Install
+              Install Now
             </Button>
             <Button
               size="sm"
