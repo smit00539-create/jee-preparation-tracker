@@ -9,35 +9,36 @@ import { useEffect, useState } from "react";
 const Index = () => {
   const { user, isGuest, guestId, signOut, loading } = useAuth();
   const navigate = useNavigate();
-  const [showInstallButton, setShowInstallButton] = useState(false);
+  const [canInstall, setCanInstall] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
     if (!loading && !user && !isGuest) {
       navigate('/auth');
     }
 
-    // Check if app can be installed
-    const checkInstallStatus = () => {
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-      const isInWebAppiOS = (window.navigator as any).standalone === true;
-      const isInWebApp = window.matchMedia('(display-mode: fullscreen)').matches;
-      const isInstalled = isStandalone || isInWebAppiOS || isInWebApp;
+    // Check installation status
+    const checkStatus = () => {
+      const installed = (window as any).isAppInstalled?.() || false;
+      setIsInstalled(installed);
       
-      console.log('[PWA] Install status check:', { isStandalone, isInWebAppiOS, isInWebApp, isInstalled });
-      setShowInstallButton(!isInstalled);
+      // Only show install button if not installed
+      setCanInstall(!installed);
     };
 
-    checkInstallStatus();
+    checkStatus();
 
-    // Listen for PWA events
     const handleInstallable = () => {
-      console.log('[PWA] App became installable');
-      checkInstallStatus();
+      console.log('[Index] App became installable');
+      if (!(window as any).isAppInstalled?.()) {
+        setCanInstall(true);
+      }
     };
 
     const handleInstalled = () => {
-      console.log('[PWA] App was installed');
-      setShowInstallButton(false);
+      console.log('[Index] App was installed');
+      setIsInstalled(true);
+      setCanInstall(false);
     };
 
     window.addEventListener('pwa-installable', handleInstallable);
@@ -49,46 +50,15 @@ const Index = () => {
     };
   }, [user, isGuest, loading, navigate]);
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/auth');
-  };
-
-  const handleInstallApp = async () => {
-    console.log('[PWA] Install button clicked on Index page');
+  const handleInstall = async () => {
+    console.log('[Index] Install button clicked');
     
-    try {
-      const result = await (window as any).installPWA();
-      console.log('[PWA] Install result from Index:', result);
-      
-      if (result.success) {
-        setShowInstallButton(false);
-      } else if (result.reason === 'no-prompt') {
-        showInstallInstructions();
-      }
-    } catch (error) {
-      console.error('[PWA] Install failed from Index:', error);
-      showInstallInstructions();
+    const result = await (window as any).triggerPWAInstall?.();
+    
+    if (result?.success) {
+      setCanInstall(false);
+      setIsInstalled(true);
     }
-  };
-
-  const showInstallInstructions = () => {
-    const userAgent = navigator.userAgent.toLowerCase();
-    let instructions = '';
-    
-    if (userAgent.includes('chrome') && !userAgent.includes('edg')) {
-      instructions = 'Chrome: Look for the install icon in the address bar or go to Menu → Install JEE Prepometer';
-    } else if (userAgent.includes('safari')) {
-      instructions = 'Safari: Tap Share button → Add to Home Screen';
-    } else if (userAgent.includes('firefox')) {
-      instructions = 'Firefox: Look for install icon in address bar';
-    } else if (userAgent.includes('edge')) {
-      instructions = 'Edge: Click Menu → Apps → Install JEE Prepometer';
-    } else {
-      instructions = 'Look for Install or Add to Home Screen option in your browser menu';
-    }
-    
-    alert(`To install JEE Prepometer:\n\n${instructions}`);
   };
 
   if (loading) {
@@ -124,11 +94,10 @@ const Index = () => {
           </div>
           
           <div className="flex items-center gap-3">
-            {showInstallButton && (
+            {canInstall && !isInstalled && (
               <Button 
-                variant="outline" 
-                onClick={handleInstallApp}
-                className="flex items-center gap-2 bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                onClick={handleInstall}
+                className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg transform hover:scale-105 transition-all duration-200"
               >
                 <Download className="h-4 w-4" />
                 Install App

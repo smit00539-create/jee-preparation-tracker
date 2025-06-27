@@ -11,6 +11,8 @@
   "scope": "/",
   "lang": "en",
   "dir": "ltr",
+  "categories": ["education", "productivity"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/favicon.ico",
@@ -30,7 +32,6 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["education", "productivity"],
   "screenshots": [
     {
       "src": "/pwa-screenshot.png",
@@ -38,9 +39,5 @@
       "type": "image/png",
       "form_factor": "narrow"
     }
-  ],
-  "prefer_related_applications": false,
-  "edge_side_panel": {
-    "preferred_width": 480
-  }
+  ]
 }

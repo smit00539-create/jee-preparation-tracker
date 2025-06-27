@@ -3,72 +3,76 @@ import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 
-// Enhanced service worker registration
+// PWA Installation Handler
+let deferredPrompt: any = null;
+let isInstallable = false;
+
+// Service worker registration
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then((registration) => {
-        console.log('[PWA] SW registered successfully:', registration);
-        
-        // Check for updates
-        registration.addEventListener('updatefound', () => {
-          console.log('[PWA] New service worker found');
-          const newWorker = registration.installing;
-          if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('[PWA] New content available, reload to update');
-                // Could show a toast here to inform user about update
-              }
-            });
-          }
-        });
+        console.log('[PWA] Service worker registered successfully');
       })
       .catch((error) => {
-        console.error('[PWA] SW registration failed:', error);
+        console.error('[PWA] Service worker registration failed:', error);
       });
   });
 }
 
-// Enhanced beforeinstallprompt handling
-let deferredPrompt: any = null;
-
+// Listen for beforeinstallprompt event
 window.addEventListener('beforeinstallprompt', (e) => {
-  console.log('[PWA] beforeinstallprompt event fired');
+  console.log('[PWA] App is installable');
   e.preventDefault();
   deferredPrompt = e;
-  // Dispatch custom event to notify components
-  window.dispatchEvent(new CustomEvent('pwa-installable', { detail: e }));
+  isInstallable = true;
+  
+  // Notify app that installation is available
+  window.dispatchEvent(new CustomEvent('pwa-installable'));
 });
 
+// Listen for app installed event
 window.addEventListener('appinstalled', () => {
   console.log('[PWA] App installed successfully');
   deferredPrompt = null;
-  // Dispatch custom event to notify components
+  isInstallable = false;
   window.dispatchEvent(new CustomEvent('pwa-installed'));
 });
 
-// Make install function globally available
-(window as any).installPWA = async () => {
-  console.log('[PWA] Install function called, deferredPrompt:', !!deferredPrompt);
-  
-  if (!deferredPrompt) {
-    console.log('[PWA] No install prompt available');
-    return { success: false, reason: 'no-prompt' };
+// Global install function
+(window as any).triggerPWAInstall = async () => {
+  if (!deferredPrompt || !isInstallable) {
+    console.log('[PWA] Installation not available');
+    return { success: false, reason: 'not-available' };
   }
 
   try {
-    console.log('[PWA] Showing install prompt');
+    // Show the native install prompt
     await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    console.log('[PWA] Install prompt result:', outcome);
     
-    deferredPrompt = null;
-    return { success: outcome === 'accepted', outcome };
+    // Wait for user choice
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log('[PWA] User choice:', outcome);
+    
+    if (outcome === 'accepted') {
+      deferredPrompt = null;
+      isInstallable = false;
+      return { success: true };
+    } else {
+      return { success: false, reason: 'dismissed' };
+    }
   } catch (error) {
-    console.error('[PWA] Install error:', error);
-    return { success: false, error };
+    console.error('[PWA] Installation failed:', error);
+    return { success: false, reason: 'error', error };
   }
+};
+
+// Check if app is already installed
+(window as any).isAppInstalled = () => {
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+  const isInWebAppiOS = (window.navigator as any).standalone === true;
+  const isInFullscreen = window.matchMedia('(display-mode: fullscreen)').matches;
+  return isStandalone || isInWebAppiOS || isInFullscreen;
 };
 
 createRoot(document.getElementById("root")!).render(<App />);
