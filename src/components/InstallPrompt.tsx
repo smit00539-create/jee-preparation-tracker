@@ -51,18 +51,18 @@ const InstallPrompt = () => {
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
 
-    // For testing purposes, show the prompt after 5 seconds if conditions are met
+    // For development - show prompt after 3 seconds if conditions are met
     const timer = setTimeout(() => {
-      if (!deferredPrompt && !isInstalled && !localStorage.getItem('installPromptDismissed')) {
-        // Check if we're in a PWA context
+      if (!isInstalled && !localStorage.getItem('installPromptDismissed')) {
         const isPWAContext = window.matchMedia('(display-mode: standalone)').matches ||
                             (window.navigator as any).standalone === true;
         
         if (!isPWAContext) {
+          console.log('Showing install prompt for development');
           setShowInstallPrompt(true);
         }
       }
-    }, 5000);
+    }, 3000);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -72,13 +72,33 @@ const InstallPrompt = () => {
   }, [isInstalled]);
 
   const handleInstallClick = async () => {
+    console.log('Install button clicked', { deferredPrompt: !!deferredPrompt });
+    
     if (!deferredPrompt) {
-      console.log('No install prompt available');
+      // Fallback for when native prompt is not available
+      console.log('No deferred prompt available, showing manual instructions');
+      
+      // Show manual installation instructions
+      const userAgent = navigator.userAgent.toLowerCase();
+      let instructions = '';
+      
+      if (userAgent.includes('chrome') && !userAgent.includes('edg')) {
+        instructions = 'Click the three dots menu → "Install JEE Prepometer" or look for the install icon in the address bar';
+      } else if (userAgent.includes('safari')) {
+        instructions = 'Tap the Share button → "Add to Home Screen"';
+      } else if (userAgent.includes('firefox')) {
+        instructions = 'Look for the install icon in the address bar or go to Settings → "Install"';
+      } else {
+        instructions = 'Look for "Install" or "Add to Home Screen" option in your browser menu';
+      }
+      
+      alert(`To install JEE Prepometer:\n\n${instructions}`);
       setShowInstallPrompt(false);
       return;
     }
 
     try {
+      console.log('Attempting to show install prompt');
       // Show the install prompt
       await deferredPrompt.prompt();
       

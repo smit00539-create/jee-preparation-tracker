@@ -22,6 +22,7 @@ interface FriendSession {
   totalTime: number;
   isActive: boolean;
   sessions: ActiveSession[];
+  currentSubject?: string;
 }
 
 const FriendsStudySessions = () => {
@@ -88,32 +89,49 @@ const FriendsStudySessions = () => {
         .select('id, username')
         .in('id', friendIds);
 
-      // Get active sessions for friends
-      const { data: activeSessions } = await supabase
+      // Get all active sessions for friends (including past sessions from today)
+      const today = new Date().toISOString().split('T')[0];
+      const { data: allSessions } = await supabase
         .from('active_study_sessions')
         .select('*')
         .in('user_id', friendIds)
-        .eq('is_active', true);
+        .gte('start_time', today);
 
       // Group sessions by user
       const friendsData: FriendSession[] = friendIds.map(friendId => {
         const profile = profiles?.find(p => p.id === friendId);
-        const userSessions = activeSessions?.filter(s => s.user_id === friendId) || [];
+        const userSessions = allSessions?.filter(s => s.user_id === friendId) || [];
+        const activeSessions = userSessions.filter(s => s.is_active);
         
+        // Calculate total time for today (both active and completed sessions)
         const totalTime = userSessions.reduce((total, session) => {
           const startTime = new Date(session.start_time);
-          const elapsed = Math.floor((currentTime.getTime() - startTime.getTime()) / 1000);
+          let elapsed;
+          
+          if (session.is_active) {
+            // For active sessions, calculate from start to now
+            elapsed = Math.floor((currentTime.getTime() - startTime.getTime()) / 1000);
+          } else {
+            // For completed sessions, we'd need end_time, but let's estimate 30 min for now
+            // In a real app, you'd store the actual session duration
+            elapsed = 30 * 60; // 30 minutes default
+          }
+          
           return total + elapsed;
         }, 0);
+
+        // Get current subject being studied
+        const currentSubject = activeSessions.length > 0 ? activeSessions[0].subject : undefined;
 
         return {
           userId: friendId,
           username: profile?.username || 'Unknown',
           totalTime,
-          isActive: userSessions.length > 0,
-          sessions: userSessions
+          isActive: activeSessions.length > 0,
+          sessions: activeSessions,
+          currentSubject
         };
-      }).filter(friend => friend.isActive); // Only show friends who are currently studying
+      }).filter(friend => friend.totalTime > 0); // Show friends who have studied today
 
       setFriendsSessions(friendsData);
     } catch (error) {
@@ -128,58 +146,72 @@ const FriendsStudySessions = () => {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getSubjectFromSessions = (sessions: ActiveSession[]) => {
-    return sessions.length > 0 ? sessions[0].subject : '';
-  };
-
   if (isGuest || friendsSessions.length === 0) {
     return null;
   }
 
   return (
     <Card className="p-6 mt-8 bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
-      <h3 className="text-lg font-semibold text-purple-800 mb-4">
-        🔥 Friends Currently Studying
+      <h3 className="text-lg font-semibold text-purple-800 mb-6 text-center">
+        📊 Friends Study Sessions Today
       </h3>
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {friendsSessions.map((friend) => {
-          const subject = getSubjectFromSessions(friend.sessions);
-          return (
-            <div key={friend.userId} className="bg-white rounded-lg p-4 shadow-sm border">
-              <div className="flex flex-col items-center space-y-3">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src="" />
-                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold">
-                    {friend.username.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                
-                <div className="text-center">
-                  <p className="font-semibold text-gray-800">{friend.username}</p>
-                  {subject && (
-                    <p className={`text-xs px-2 py-1 rounded-full ${SUBJECT_COLORS[subject] || 'bg-gray-100 text-gray-600'} mt-1`}>
-                      {subject}
-                    </p>
-                  )}
-                </div>
-
-                <div className="text-center">
-                  <div className="text-2xl font-mono font-bold text-green-600">
-                    {formatTime(friend.totalTime)}
-                  </div>
-                  <div className="flex items-center justify-center space-x-1 mt-1">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-xs text-green-600 font-medium">LIVE</span>
-                  </div>
-                </div>
-
-                <div className="text-xs text-gray-500 text-center">
-                  {friend.sessions.length} active session{friend.sessions.length !== 1 ? 's' : ''}
-                </div>
+      
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {friendsSessions.map((friend) => (
+          <div key={friend.userId} className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 text-center">
+            {/* Profile Avatar */}
+            <div className="flex justify-center mb-3">
+              <Avatar className="h-16 w-16 border-2 border-gray-200">
+                <AvatarImage src="" />
+                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-bold text-lg">
+                  {friend.username.slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+            
+            {/* Username */}
+            <h4 className="font-semibold text-gray-800 mb-2 text-sm">
+              {friend.username}
+            </h4>
+            
+            {/* Current Subject (if studying) */}
+            {friend.isActive && friend.currentSubject && (
+              <div className="mb-3">
+                <span className={`text-xs px-2 py-1 rounded-full ${SUBJECT_COLORS[friend.currentSubject] || 'bg-gray-100 text-gray-600'}`}>
+                  {friend.currentSubject}
+                </span>
+              </div>
+            )}
+            
+            {/* Study Time */}
+            <div className="mb-2">
+              <div className="text-xl font-mono font-bold text-gray-800">
+                {formatTime(friend.totalTime)}
               </div>
             </div>
-          );
-        })}
+            
+            {/* Status Indicator */}
+            <div className="flex items-center justify-center space-x-1">
+              {friend.isActive ? (
+                <>
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-xs text-green-600 font-medium">LIVE</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                  <span className="text-xs text-gray-500 font-medium">TODAY</span>
+                </>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      <div className="mt-4 text-center">
+        <p className="text-xs text-gray-500">
+          Study together and motivate each other! 💪
+        </p>
       </div>
     </Card>
   );

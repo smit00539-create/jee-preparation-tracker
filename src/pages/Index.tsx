@@ -1,16 +1,20 @@
-
 import { Link, useNavigate } from "react-router-dom";
-import { BookOpen, Calendar, GraduationCap, UserPlus, LogOut, User, Download } from "lucide-react";
+import { BookOpen, Calendar, GraduationCap, UserPlus, LogOut, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
 const Index = () => {
   const { user, isGuest, guestId, signOut, loading } = useAuth();
   const navigate = useNavigate();
   const [showInstallButton, setShowInstallButton] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
     if (!loading && !user && !isGuest) {
@@ -27,12 +31,14 @@ const Index = () => {
 
     // Listen for the install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
+      console.log('beforeinstallprompt event fired on Index page');
       e.preventDefault();
-      setDeferredPrompt(e);
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
       setShowInstallButton(true);
     };
 
     const handleAppInstalled = () => {
+      console.log('App was installed from Index page');
       setShowInstallButton(false);
       setDeferredPrompt(null);
     };
@@ -52,8 +58,24 @@ const Index = () => {
   };
 
   const handleInstallApp = async () => {
+    console.log('Install app clicked from Index page', { deferredPrompt: !!deferredPrompt });
+    
     if (!deferredPrompt) {
-      console.log('No install prompt available');
+      // Fallback for when native prompt is not available
+      const userAgent = navigator.userAgent.toLowerCase();
+      let instructions = '';
+      
+      if (userAgent.includes('chrome') && !userAgent.includes('edg')) {
+        instructions = 'Click the three dots menu → "Install JEE Prepometer" or look for the install icon in the address bar';
+      } else if (userAgent.includes('safari')) {
+        instructions = 'Tap the Share button → "Add to Home Screen"';
+      } else if (userAgent.includes('firefox')) {
+        instructions = 'Look for the install icon in the address bar or go to Settings → "Install"';
+      } else {
+        instructions = 'Look for "Install" or "Add to Home Screen" option in your browser menu';
+      }
+      
+      alert(`To install JEE Prepometer:\n\n${instructions}`);
       return;
     }
 
