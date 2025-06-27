@@ -49,9 +49,14 @@ const TimerComponent = ({ onTimeUpdate, size = "md", subject, category }: TimerC
   };
 
   const startSession = async () => {
-    if (isGuest || !user || !subject || !category) return null;
+    if (isGuest || !user || !subject || !category) {
+      console.log('Cannot start session:', { isGuest, hasUser: !!user, subject, category });
+      return null;
+    }
 
     try {
+      console.log('Starting study session:', { subject, category, userId: user.id });
+      
       const { data, error } = await supabase
         .from('active_study_sessions')
         .insert({
@@ -69,6 +74,7 @@ const TimerComponent = ({ onTimeUpdate, size = "md", subject, category }: TimerC
         return null;
       }
 
+      console.log('Study session started:', data);
       return data.id;
     } catch (error) {
       console.error('Error starting session:', error);
@@ -80,10 +86,18 @@ const TimerComponent = ({ onTimeUpdate, size = "md", subject, category }: TimerC
     if (isGuest || !user) return;
 
     try {
-      await supabase
+      console.log('Stopping study session:', sessionId);
+      
+      const { error } = await supabase
         .from('active_study_sessions')
         .update({ is_active: false })
         .eq('id', sessionId);
+
+      if (error) {
+        console.error('Error stopping session:', error);
+      } else {
+        console.log('Study session stopped successfully');
+      }
     } catch (error) {
       console.error('Error stopping session:', error);
     }
@@ -92,6 +106,7 @@ const TimerComponent = ({ onTimeUpdate, size = "md", subject, category }: TimerC
   const handleToggle = async () => {
     if (isRunning) {
       // Stop timer
+      console.log('Stopping timer');
       setIsRunning(false);
       if (sessionId) {
         await stopSession(sessionId);
@@ -99,10 +114,13 @@ const TimerComponent = ({ onTimeUpdate, size = "md", subject, category }: TimerC
       }
     } else {
       // Start timer
+      console.log('Starting timer');
       setIsRunning(true);
-      if (subject && category) {
+      if (subject && category && !isGuest) {
         const newSessionId = await startSession();
-        setSessionId(newSessionId);
+        if (newSessionId) {
+          setSessionId(newSessionId);
+        }
       }
     }
   };
@@ -125,6 +143,7 @@ const TimerComponent = ({ onTimeUpdate, size = "md", subject, category }: TimerC
             : "bg-green-100 border-green-300 hover:bg-green-200"
         }`}
         onClick={handleToggle}
+        title={isRunning ? "Stop timer" : "Start timer"}
       >
         {isRunning ? (
           <Square className={`${iconSize} text-red-600`} />

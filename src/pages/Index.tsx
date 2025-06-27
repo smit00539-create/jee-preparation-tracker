@@ -27,18 +27,19 @@ const Index = () => {
     const isInWebApp = window.matchMedia('(display-mode: fullscreen)').matches;
     const isInstalled = isStandalone || isInWebAppiOS || isInWebApp;
     
+    console.log('[PWA] Installation status:', { isStandalone, isInWebAppiOS, isInWebApp, isInstalled });
     setShowInstallButton(!isInstalled);
 
     // Listen for the install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
-      console.log('beforeinstallprompt event fired on Index page');
+      console.log('[PWA] beforeinstallprompt event fired on Index page');
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       setShowInstallButton(true);
     };
 
     const handleAppInstalled = () => {
-      console.log('App was installed from Index page');
+      console.log('[PWA] App was installed from Index page');
       setShowInstallButton(false);
       setDeferredPrompt(null);
     };
@@ -58,38 +59,38 @@ const Index = () => {
   };
 
   const handleInstallApp = async () => {
-    console.log('Install app clicked from Index page', { deferredPrompt: !!deferredPrompt });
+    console.log('[PWA] Install app clicked from Index page', { deferredPrompt: !!deferredPrompt });
     
     if (!deferredPrompt) {
-      // Fallback for when native prompt is not available
+      console.log('[PWA] No deferred prompt available, trying alternative methods');
+      
+      // For browsers that support it, try to trigger installation
       const userAgent = navigator.userAgent.toLowerCase();
-      let instructions = '';
       
-      if (userAgent.includes('chrome') && !userAgent.includes('edg')) {
-        instructions = 'Click the three dots menu → "Install JEE Prepometer" or look for the install icon in the address bar';
+      if (userAgent.includes('chrome') || userAgent.includes('edge')) {
+        // For Chrome/Edge, the prompt should be available
+        console.log('[PWA] Chrome/Edge detected but no prompt - showing instructions');
+        showInstallInstructions();
       } else if (userAgent.includes('safari')) {
-        instructions = 'Tap the Share button → "Add to Home Screen"';
-      } else if (userAgent.includes('firefox')) {
-        instructions = 'Look for the install icon in the address bar or go to Settings → "Install"';
+        showInstallInstructions();
       } else {
-        instructions = 'Look for "Install" or "Add to Home Screen" option in your browser menu';
+        showInstallInstructions();
       }
-      
-      alert(`To install JEE Prepometer:\n\n${instructions}`);
       return;
     }
 
     try {
+      console.log('[PWA] Attempting to show install prompt');
       // Show the install prompt
       await deferredPrompt.prompt();
       
       // Wait for the user to respond to the prompt
       const { outcome } = await deferredPrompt.userChoice;
       
-      console.log(`Install prompt outcome: ${outcome}`);
+      console.log(`[PWA] Install prompt outcome: ${outcome}`);
       
       if (outcome === 'accepted') {
-        console.log('User accepted the install prompt');
+        console.log('[PWA] User accepted the install prompt');
         setShowInstallButton(false);
       }
       
@@ -97,8 +98,28 @@ const Index = () => {
       setDeferredPrompt(null);
       
     } catch (error) {
-      console.error('Error during installation:', error);
+      console.error('[PWA] Error during installation:', error);
+      showInstallInstructions();
     }
+  };
+
+  const showInstallInstructions = () => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    let instructions = '';
+    
+    if (userAgent.includes('chrome') && !userAgent.includes('edg')) {
+      instructions = 'Chrome: Click the install icon in the address bar or go to Menu → Install JEE Prepometer';
+    } else if (userAgent.includes('safari')) {
+      instructions = 'Safari: Tap Share button → Add to Home Screen';
+    } else if (userAgent.includes('firefox')) {
+      instructions = 'Firefox: Look for install icon in address bar';
+    } else if (userAgent.includes('edge')) {
+      instructions = 'Edge: Click Menu → Apps → Install JEE Prepometer';
+    } else {
+      instructions = 'Look for Install or Add to Home Screen option in your browser menu';
+    }
+    
+    alert(`To install JEE Prepometer:\n\n${instructions}`);
   };
 
   if (loading) {
@@ -236,9 +257,9 @@ const Index = () => {
             </div>
             <div className="bg-white/60 backdrop-blur-sm rounded-lg p-6">
               <div className="text-2xl mb-2">📱</div>
-              <h4 className="font-semibold text-gray-800 mb-2">Mobile Friendly</h4>
+              <h4 className="font-semibold text-gray-800 mb-2">PWA App</h4>
               <p className="text-sm text-gray-600">
-                Access your progress anywhere, anytime on any device
+                Install as native app for better performance and offline access
               </p>
             </div>
             <div className="bg-white/60 backdrop-blur-sm rounded-lg p-6">
@@ -250,9 +271,9 @@ const Index = () => {
             </div>
             <div className="bg-white/60 backdrop-blur-sm rounded-lg p-6">
               <div className="text-2xl mb-2">👥</div>
-              <h4 className="font-semibold text-gray-800 mb-2">Friends System</h4>
+              <h4 className="font-semibold text-gray-800 mb-2">Live Study Sessions</h4>
               <p className="text-sm text-gray-600">
-                {isGuest ? 'Create an account to add friends' : 'Connect with study partners'}
+                {isGuest ? 'Create an account to see friends study live' : 'See friends studying in real-time'}
               </p>
             </div>
           </div>
