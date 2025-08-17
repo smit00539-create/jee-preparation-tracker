@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { BookOpen, Calendar, GraduationCap, UserPlus, LogOut, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 
@@ -11,53 +12,67 @@ const Index = () => {
   const navigate = useNavigate();
   const [canInstall, setCanInstall] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
-
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallDialog, setShowInstallDialog] = useState(false);
   useEffect(() => {
     if (!loading && !user && !isGuest) {
       navigate('/auth');
     }
 
-    // Check installation status
-    const checkStatus = () => {
-      const installed = (window as any).isAppInstalled?.() || false;
-      setIsInstalled(installed);
-      
-      // Only show install button if not installed
-      setCanInstall(!installed);
+    const isAppInstalled = () => {
+      return window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
     };
 
-    checkStatus();
-
-    const handleInstallable = () => {
-      console.log('[Index] App became installable');
-      if (!(window as any).isAppInstalled?.()) {
-        setCanInstall(true);
-      }
+    const handleBIP = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setCanInstall(!isAppInstalled());
     };
 
-    const handleInstalled = () => {
-      console.log('[Index] App was installed');
+    const handleAppInstalled = () => {
       setIsInstalled(true);
       setCanInstall(false);
+      setDeferredPrompt(null);
     };
 
-    window.addEventListener('pwa-installable', handleInstallable);
-    window.addEventListener('pwa-installed', handleInstalled);
+    window.addEventListener('beforeinstallprompt', handleBIP as EventListener);
+    window.addEventListener('appinstalled', handleAppInstalled as EventListener);
+
+    // Initialize install state
+    const installed = isAppInstalled();
+    setIsInstalled(installed);
+    setCanInstall(!installed);
 
     return () => {
-      window.removeEventListener('pwa-installable', handleInstallable);
-      window.removeEventListener('pwa-installed', handleInstalled);
+      window.removeEventListener('beforeinstallprompt', handleBIP as EventListener);
+      window.removeEventListener('appinstalled', handleAppInstalled as EventListener);
     };
   }, [user, isGuest, loading, navigate]);
 
   const handleInstall = async () => {
-    console.log('[Index] Install button clicked');
-    
-    const result = await (window as any).triggerPWAInstall?.();
-    
-    if (result?.success) {
+    if (!deferredPrompt) return;
+    setShowInstallDialog(true);
+  };
+
+  const confirmInstall = async () => {
+    if (!deferredPrompt) return;
+    setShowInstallDialog(false);
+    const promptEvent: any = deferredPrompt;
+    await promptEvent.prompt();
+    const choice = await promptEvent.userChoice;
+    if (choice?.outcome === 'accepted') {
       setCanInstall(false);
       setIsInstalled(true);
+    }
+    setDeferredPrompt(null);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/auth');
+    } catch (e) {
+      console.error('[Index] Sign out failed', e);
     }
   };
 
@@ -117,6 +132,21 @@ const Index = () => {
             </Button>
           </div>
         </div>
+
+        <AlertDialog open={showInstallDialog} onOpenChange={setShowInstallDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Install JEE Prepometer</AlertDialogTitle>
+              <AlertDialogDescription>
+                Install the app to your device for a fast, full-screen experience.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmInstall}>Download</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Welcome Message */}
         <div className="text-center mb-12">
