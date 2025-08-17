@@ -15,8 +15,12 @@ const Index = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallDialog, setShowInstallDialog] = useState(false);
   useEffect(() => {
-    if (!loading && !user && !isGuest) {
+    // Only redirect if we're done loading and have no user/guest
+    if (loading) return;
+    
+    if (!user && !isGuest) {
       navigate('/auth');
+      return;
     }
 
     const isAppInstalled = () => {
@@ -24,9 +28,12 @@ const Index = () => {
     };
 
     const handleBIP = (e: any) => {
+      console.log('beforeinstallprompt event fired');
       e.preventDefault();
       setDeferredPrompt(e);
-      setCanInstall(!isAppInstalled());
+      if (!isAppInstalled()) {
+        setCanInstall(true);
+      }
     };
 
     const handleAppInstalled = () => {
@@ -50,20 +57,36 @@ const Index = () => {
   }, [user, isGuest, loading, navigate]);
 
   const handleInstall = async () => {
-    if (!deferredPrompt) return;
+    console.log('Install button clicked, deferredPrompt:', !!deferredPrompt);
+    if (!deferredPrompt) {
+      // Fallback for browsers that don't support beforeinstallprompt
+      alert('To install this app:\n1. Click the browser menu (⋯)\n2. Select "Install app" or "Add to Home Screen"');
+      return;
+    }
     setShowInstallDialog(true);
   };
 
   const confirmInstall = async () => {
     if (!deferredPrompt) return;
+    
     setShowInstallDialog(false);
-    const promptEvent: any = deferredPrompt;
-    await promptEvent.prompt();
-    const choice = await promptEvent.userChoice;
-    if (choice?.outcome === 'accepted') {
-      setCanInstall(false);
-      setIsInstalled(true);
+    console.log('User confirmed install, prompting...');
+    
+    try {
+      const promptEvent: any = deferredPrompt;
+      await promptEvent.prompt();
+      const choice = await promptEvent.userChoice;
+      
+      console.log('Install choice:', choice?.outcome);
+      
+      if (choice?.outcome === 'accepted') {
+        setCanInstall(false);
+        setIsInstalled(true);
+      }
+    } catch (error) {
+      console.error('Install prompt error:', error);
     }
+    
     setDeferredPrompt(null);
   };
 

@@ -82,7 +82,10 @@ const Auth = () => {
           title: "Success",
           description: isSignUp ? "Account created successfully!" : "Signed in successfully!"
         });
-        navigate('/');
+        // Small delay to ensure auth state is updated
+        setTimeout(() => {
+          navigate('/');
+        }, 100);
       }
     } catch (error) {
       toast({
