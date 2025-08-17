@@ -58,14 +58,20 @@ const InstallPrompt = () => {
   const handleInstall = async () => {
     console.log('[InstallPrompt] Install button clicked');
     
-    const result = await (window as any).triggerPWAInstall?.();
-    
-    if (result?.success) {
-      setShowPrompt(false);
-      setIsAppInstalled(true);
-    } else {
-      console.log('[InstallPrompt] Install failed or was dismissed');
-      // Hide prompt even if dismissed to avoid annoyance
+    try {
+      const result = await (window as any).triggerPWAInstall?.();
+      
+      if (result?.success) {
+        console.log('[InstallPrompt] Installation successful');
+        setShowPrompt(false);
+        setIsAppInstalled(true);
+      } else {
+        console.log('[InstallPrompt] Install failed or was dismissed:', result?.reason);
+        // Hide prompt to avoid annoyance, but don't mark as installed
+        setShowPrompt(false);
+      }
+    } catch (error) {
+      console.error('[InstallPrompt] Install error:', error);
       setShowPrompt(false);
     }
   };

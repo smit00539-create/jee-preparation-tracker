@@ -1,18 +1,17 @@
 
-const CACHE_NAME = 'jee-prepometer-v6';
+const CACHE_NAME = 'jee-prepometer-v7';
 const urlsToCache = [
   '/',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
   '/manifest.json',
   '/pwa-192x192.png',
   '/pwa-512x512.png',
+  '/pwa-screenshot.png',
   '/favicon.ico'
 ];
 
 // Install event
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing service worker v6');
+  console.log('[SW] Installing service worker v7');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -30,7 +29,7 @@ self.addEventListener('install', (event) => {
 
 // Activate event
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating service worker v6');
+  console.log('[SW] Activating service worker v7');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
