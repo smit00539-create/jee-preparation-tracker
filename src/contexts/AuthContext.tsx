@@ -66,31 +66,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signUp = async (email: string, password: string, username: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-        data: {
-          username: username
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            username: username
+          }
         }
+      });
+
+      // Check if email confirmation is required
+      if (data.user && !data.session && !error) {
+        return { error: null, needsConfirmation: true };
       }
-    });
 
-    // Check if email confirmation is required
-    if (data.user && !data.session && !error) {
-      return { error: null, needsConfirmation: true };
+      return { error };
+    } catch (networkError) {
+      console.error('Network error during sign up:', networkError);
+      return { error: { message: 'Network connection failed. Please check your internet connection and try again.' } };
     }
-
-    return { error };
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error };
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      console.log('Sign in result:', { user: data?.user?.email, error });
+      return { error };
+    } catch (networkError) {
+      console.error('Network error during sign in:', networkError);
+      return { error: { message: 'Network connection failed. Please check your internet connection and try again.' } };
+    }
   };
 
   const signOut = async () => {

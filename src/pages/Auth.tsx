@@ -82,10 +82,9 @@ const Auth = () => {
           title: "Success",
           description: isSignUp ? "Account created successfully!" : "Signed in successfully!"
         });
-        // Small delay to ensure auth state is updated
-        setTimeout(() => {
-          navigate('/');
-        }, 100);
+        
+        // Force page refresh to ensure clean state
+        window.location.href = '/';
       }
     } catch (error) {
       toast({
